@@ -1,0 +1,38 @@
+﻿<Window x:Class="MainApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MainApp"
+        mc:Ignorable="d"
+        Title="FAN" Height="400" Width="300">
+
+    <Window.Resources>
+        <BeginStoryboard x:Key="sb-rotate-fan">
+            <Storyboard x:Name="SpinFan" RepeatBehavior="Forever">
+                <DoubleAnimation Storyboard.TargetName="Rotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1"/>
+            </Storyboard>     
+        </BeginStoryboard>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" RenderTransformOrigin="0.5 0.5" Foreground="SlateGray" FontSize="72" Style="{StaticResource fan-icon}">
+            <TextBlock.RenderTransform>
+                <RotateTransform x:Name="Rotation" Angle="0" />
+            </TextBlock.RenderTransform>
+        </TextBlock>
+        
+        <StackPanel Grid.Row="1">
+            <Slider x:Name="Slider_Speed" IsSnapToTickEnabled="False" TickFrequency="0.1" Value="1" Minimum="0.1" Maximum="3" Margin="30 20" ValueChanged="Slider_Speed_ValueChanged"/>
+            <Button x:Name="Btn_OnOff" Style="{StaticResource btn-primary}" Content="START" Click="Btn_OnOff_Click" />
+
+            
+        </StackPanel>
+        
+    </Grid>
+</Window>
