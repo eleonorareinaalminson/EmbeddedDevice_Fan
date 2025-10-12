@@ -5,34 +5,60 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MainApp"
         mc:Ignorable="d"
-        Title="FAN" Height="400" Width="300">
+        Title="FAN" Height="550" Width="350">
 
     <Window.Resources>
         <BeginStoryboard x:Key="sb-rotate-fan">
             <Storyboard x:Name="SpinFan" RepeatBehavior="Forever">
                 <DoubleAnimation Storyboard.TargetName="Rotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1"/>
-            </Storyboard>     
+            </Storyboard>
         </BeginStoryboard>
     </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" RenderTransformOrigin="0.5 0.5" Foreground="SlateGray" FontSize="72" Style="{StaticResource fan-icon}">
+        <!-- Fläkt-ikon -->
+        <TextBlock Grid.Row="0" Height="120" RenderTransformOrigin="0.5 0.5" Foreground="SlateGray" FontSize="72" Style="{StaticResource fan-icon}">
             <TextBlock.RenderTransform>
                 <RotateTransform x:Name="Rotation" Angle="0" />
             </TextBlock.RenderTransform>
         </TextBlock>
-        
+
+        <!-- Kontroller -->
         <StackPanel Grid.Row="1">
             <Slider x:Name="Slider_Speed" IsSnapToTickEnabled="False" TickFrequency="0.1" Value="1" Minimum="0.1" Maximum="3" Margin="30 20" ValueChanged="Slider_Speed_ValueChanged"/>
             <Button x:Name="Btn_OnOff" Style="{StaticResource btn-primary}" Content="START" Click="Btn_OnOff_Click" />
-
-            
         </StackPanel>
-        
+
+        <!-- Status/Logg-område -->
+        <Border Grid.Row="2" Margin="0 20 0 0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Border Grid.Row="0" Background="SlateGray" CornerRadius="4 4 0 0" Padding="10 5">
+                    <TextBlock Text="STATUS LOG" Foreground="White" FontWeight="Bold" FontSize="11"/>
+                </Border>
+
+                <!-- Logg-innehåll -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10">
+                    <TextBlock x:Name="Txt_StatusLog" 
+                               TextWrapping="Wrap" 
+                               FontFamily="Consolas" 
+                               FontSize="10" 
+                               Foreground="#333"
+                               LineHeight="16"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
     </Grid>
 </Window>

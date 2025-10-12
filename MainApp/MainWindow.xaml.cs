@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     private ConfigurationService? _configService;
     private bool _isConnected = false;
 
+    private const int MAX_UI_LOG_LINES = 50; // Begränsa antal rader i UI
+
     public MainWindow()
     {
         InitializeComponent();
@@ -64,8 +66,8 @@ public partial class MainWindow : Window
             _serviceBusClient = new DeviceServiceBusClient(
                 _configService.GetDeviceId(),
                 _configService.GetServiceBusConnectionString(),
-                _configService.GetStatusQueue(),  
-                _configService.GetCommandQueue(), 
+                _configService.GetStatusQueue(),
+                _configService.GetCommandQueue(),
                 _configService.GetAlarmQueue()
             );
 
@@ -207,9 +209,31 @@ public partial class MainWindow : Window
 
     private void LogMessage(string message)
     {
-        string line = @$"{DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}";
+        string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}";
         _eventLog?.Add(line);
 
+        // Uppdatera UI
+        Dispatcher.Invoke(() =>
+        {
+            // Lägg till ny rad överst
+            if (!string.IsNullOrEmpty(Txt_StatusLog.Text))
+            {
+                Txt_StatusLog.Text = line + Environment.NewLine + Txt_StatusLog.Text;
+            }
+            else
+            {
+                Txt_StatusLog.Text = line;
+            }
+
+            // Begränsa antal rader i UI för prestanda
+            var lines = Txt_StatusLog.Text.Split(Environment.NewLine);
+            if (lines.Length > MAX_UI_LOG_LINES)
+            {
+                Txt_StatusLog.Text = string.Join(Environment.NewLine, lines.Take(MAX_UI_LOG_LINES));
+            }
+        });
+
+        // Spara till fil
         try
         {
             File.AppendAllText(_logFilePath, line + Environment.NewLine);
