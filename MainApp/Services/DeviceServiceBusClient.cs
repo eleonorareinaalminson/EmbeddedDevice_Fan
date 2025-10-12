@@ -57,7 +57,6 @@ public class DeviceServiceBusClient : IAsyncDisposable
     {
         try
         {
-            // Filtrera på Subject (DeviceId)
             if (args.Message.Subject != _deviceId)
             {
                 await args.CompleteMessageAsync(args.Message);
