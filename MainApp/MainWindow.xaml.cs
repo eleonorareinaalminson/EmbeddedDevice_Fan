@@ -112,8 +112,16 @@ public partial class MainWindow : Window
                 case "SetSpeed":
                     if (command.Parameters.TryGetValue("Value", out var speedObj))
                     {
-                        var speed = Convert.ToDouble(speedObj);
+                        var speed = Convert.ToDouble(speedObj, System.Globalization.CultureInfo.InvariantCulture);
                         Slider_Speed.Value = speed;
+
+                        if (_isRunning && _rotatingFan != null)
+                        {
+                            _rotatingFan.SetSpeedRatio(speed);
+                            _currentSpeed = speed;
+                            LogMessage($"Fan speed set to {speed:0.00}");
+                            await SendStatusUpdateAsync();
+                        }
                     }
                     break;
             }
