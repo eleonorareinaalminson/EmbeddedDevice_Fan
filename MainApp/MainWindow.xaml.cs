@@ -20,7 +20,7 @@ public partial class MainWindow : Window
     private ConfigurationService? _configService;
     private bool _isConnected = false;
 
-    private const int MAX_UI_LOG_LINES = 50; // Begränsa antal rader i UI
+    private const int MAX_UI_LOG_LINES = 50; 
 
     public MainWindow()
     {

@@ -22,5 +22,14 @@ public class ConfigurationService
     public string GetCommandQueue() => Configuration["ServiceBus:CommandQueue"] ?? "device-commands";
     public string GetAlarmQueue() => Configuration["ServiceBus:AlarmQueue"] ?? "device-alarms";
 
-    public double GetAlarmSpeedThreshold() => double.Parse(Configuration["Thresholds:AlarmSpeedThreshold"] ?? "2.8");
+    public double GetAlarmSpeedThreshold()
+    {
+        var value = Configuration["Thresholds:AlarmSpeedThreshold"] ?? "2.8";
+        if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out double result))
+        {
+            return result;
+        }
+        return 2.8; // Default fallback
+    }
 }
