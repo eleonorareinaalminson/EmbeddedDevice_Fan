@@ -133,7 +133,7 @@ public partial class MainWindow : Window
                 State = _isRunning ? 2 : (_isConnected ? 1 : 0),
                 Properties = new Dictionary<string, object>
                 {
-                    { "Speed", _currentSpeed },
+                    { "Speed", _currentSpeed.ToString(System.Globalization.CultureInfo.InvariantCulture) },
                     { "IsRunning", _isRunning }
                 }
             };
