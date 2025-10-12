@@ -1,5 +1,7 @@
 ﻿
-namespace MainApp.Models;
+
+namespace MainApp.Services;
+
 public class DeviceCommandMessage
 {
     public string DeviceId { get; set; } = string.Empty;

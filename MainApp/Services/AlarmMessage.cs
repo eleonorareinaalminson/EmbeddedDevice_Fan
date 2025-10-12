@@ -1,6 +1,5 @@
 ﻿
-namespace MainApp.Models;
-
+namespace MainApp.Services;
 
 public class AlarmMessage
 {

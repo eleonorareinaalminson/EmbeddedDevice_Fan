@@ -1,5 +1,6 @@
 ﻿
-namespace MainApp.Models;
+namespace MainApp.Services;
+
 public class DeviceStatusMessage
 {
     public string DeviceId { get; set; } = string.Empty;
