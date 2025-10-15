@@ -58,28 +58,27 @@ public partial class MainWindow : Window
         var appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EmbeddedDevice");
         Directory.CreateDirectory(appDir);
         _logFilePath = Path.Combine(appDir, "eventlog.log");
-
-        DeviceState.GetStatusFunc = GetDeviceStatus;
-        DeviceState.HandleCommandAction = HandleRestCommand;
     }
 
     private async Task InitializeServicesAsync()
     {
         _configService = new ConfigurationService();
 
+        var stateProvider = new DeviceStateProvider(this);
+
         try
         {
-            _restApiHost = new RestApiHostService("http://localhost:5001");
+            _restApiHost = new RestApiHostService("http://localhost:5001", stateProvider);
             await _restApiHost.StartAsync();
             LogMessage("REST API started on http://localhost:5001");
-            LogMessage("   Endpoints:");
-            LogMessage("   - GET  http://localhost:5001/api/health");
-            LogMessage("   - GET  http://localhost:5001/api/status");
-            LogMessage("   - POST http://localhost:5001/api/command");
+            LogMessage("Endpoints:");
+            LogMessage("- GET  http://localhost:5001/api/health");
+            LogMessage("- GET  http://localhost:5001/api/status");
+            LogMessage("- POST http://localhost:5001/api/command");
         }
         catch (Exception ex)
         {
-            LogMessage($"❌ Failed to start REST API: {ex.Message}");
+            LogMessage($"Failed to start REST API: {ex.Message}");
             MessageBox.Show($"REST API failed to start: {ex.Message}\n\nDevice will work in standalone mode.",
                 "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
@@ -103,19 +102,19 @@ public partial class MainWindow : Window
             await _serviceBusClient.InitializeAsync();
             _isConnected = true;
 
-            LogMessage("✅ Connected to Azure Service Bus");
+            LogMessage("Connected to Azure Service Bus");
             await SendStatusUpdateAsync();
             _statusTimer?.Start();
         }
         catch (Exception ex)
         {
             _isConnected = false;
-            LogMessage($"⚠️  Service Bus unavailable: {ex.Message}");
-            LogMessage("   Device will work in REST-only mode (G-krav OK)");
+            LogMessage($"Service Bus unavailable: {ex.Message}");
+            LogMessage("Device will work in REST-only mode");
         }
     }
 
-    private object GetDeviceStatus()
+    public object GetDeviceStatus()
     {
         return new
         {
@@ -133,7 +132,7 @@ public partial class MainWindow : Window
         };
     }
 
-    private void HandleRestCommand(CommandRequest command)
+    public void HandleRestCommand(CommandRequest command)
     {
         Dispatcher.Invoke(async () =>
         {
@@ -145,11 +144,11 @@ public partial class MainWindow : Window
                     if (!_isRunning)
                     {
                         await ToggleRunningStateAsync();
-                        LogMessage($"Fan started via REST");
+                        LogMessage("Fan started via REST");
                     }
                     else
                     {
-                        LogMessage($"Fan already running");
+                        LogMessage("Fan already running");
                     }
                     break;
 
@@ -157,11 +156,11 @@ public partial class MainWindow : Window
                     if (_isRunning)
                     {
                         await ToggleRunningStateAsync();
-                        LogMessage($"Fan stopped via REST");
+                        LogMessage("Fan stopped via REST");
                     }
                     else
                     {
-                        LogMessage($"Fan already stopped");
+                        LogMessage("Fan already stopped");
                     }
                     break;
 
@@ -193,7 +192,7 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        LogMessage($"Missing 'Value' parameter");
+                        LogMessage("Missing 'Value' parameter");
                     }
                     break;
 
@@ -287,7 +286,6 @@ public partial class MainWindow : Window
             LogMessage($"ALARM: {alarm.Message}");
         }
     }
-
 
     private void Btn_OnOff_Click(object sender, RoutedEventArgs e)
     {

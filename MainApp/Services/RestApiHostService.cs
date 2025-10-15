@@ -1,9 +1,7 @@
-﻿// MainApp/Services/RestApiHostService.cs
-using MainApp.Models;
+﻿using MainApp.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.Text.Json;
 
 namespace MainApp.Services;
 
@@ -12,27 +10,20 @@ public class RestApiHostService
     private WebApplication? _app;
     private Task? _runTask;
     private readonly string _url;
+    private readonly IDeviceStateProvider _stateProvider;
 
-    public RestApiHostService(string url = "http://localhost:5001")
+    public RestApiHostService(string url, IDeviceStateProvider stateProvider)
     {
         _url = url;
+        _stateProvider = stateProvider ?? throw new ArgumentNullException(nameof(stateProvider));
     }
 
     public async Task StartAsync()
     {
         var builder = WebApplication.CreateBuilder();
-
-        // Konfigurera URL
         builder.WebHost.UseUrls(_url);
-
-        // Bygg app
         _app = builder.Build();
 
-        // ========================================
-        // API ENDPOINTS
-        // ========================================
-
-        // GET /api/health - Health check
         _app.MapGet("/api/health", () =>
         {
             return Results.Ok(new
@@ -43,17 +34,12 @@ public class RestApiHostService
             });
         });
 
-        // GET /api/status - Hämta enhetsstatus
         _app.MapGet("/api/status", () =>
         {
-            if (DeviceState.GetStatusFunc == null)
-                return Results.Problem("Status function not configured");
-
-            var status = DeviceState.GetStatusFunc();
+            var status = _stateProvider.GetStatus();
             return Results.Ok(status);
         });
 
-        // POST /api/command - Ta emot kommando
         _app.MapPost("/api/command", async (HttpContext context) =>
         {
             try
@@ -63,10 +49,7 @@ public class RestApiHostService
                 if (command == null)
                     return Results.BadRequest(new { error = "Invalid command format" });
 
-                if (DeviceState.HandleCommandAction == null)
-                    return Results.Problem("Command handler not configured");
-
-                DeviceState.HandleCommandAction(command);
+                _stateProvider.HandleCommand(command);
 
                 return Results.Ok(new
                 {
@@ -82,10 +65,8 @@ public class RestApiHostService
             }
         });
 
-        // Starta servern i bakgrunden
         _runTask = _app.RunAsync();
-
-        await Task.Delay(500); // Ge servern tid att starta
+        await Task.Delay(500);
     }
 
     public async Task StopAsync()
