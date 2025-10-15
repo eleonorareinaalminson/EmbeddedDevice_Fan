@@ -1,10 +1,12 @@
 ﻿using MainApp.Services;
+using MainApp.Models;
 using System.IO;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace MainApp;
+
 public partial class MainWindow : Window
 {
     private string _logFilePath = "";
@@ -18,15 +20,16 @@ public partial class MainWindow : Window
 
     private DeviceServiceBusClient? _serviceBusClient;
     private ConfigurationService? _configService;
+    private RestApiHostService? _restApiHost;
     private bool _isConnected = false;
 
-    private const int MAX_UI_LOG_LINES = 50; 
+    private const int MAX_UI_LOG_LINES = 50;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeFeatures();
-        _ = InitializeServiceBusAsync();
+        _ = InitializeServicesAsync();
     }
 
     private void InitializeFeatures()
@@ -55,16 +58,41 @@ public partial class MainWindow : Window
         var appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EmbeddedDevice");
         Directory.CreateDirectory(appDir);
         _logFilePath = Path.Combine(appDir, "eventlog.log");
+
+        DeviceState.GetStatusFunc = GetDeviceStatus;
+        DeviceState.HandleCommandAction = HandleRestCommand;
+    }
+
+    private async Task InitializeServicesAsync()
+    {
+        _configService = new ConfigurationService();
+
+        try
+        {
+            _restApiHost = new RestApiHostService("http://localhost:5001");
+            await _restApiHost.StartAsync();
+            LogMessage("REST API started on http://localhost:5001");
+            LogMessage("   Endpoints:");
+            LogMessage("   - GET  http://localhost:5001/api/health");
+            LogMessage("   - GET  http://localhost:5001/api/status");
+            LogMessage("   - POST http://localhost:5001/api/command");
+        }
+        catch (Exception ex)
+        {
+            LogMessage($"❌ Failed to start REST API: {ex.Message}");
+            MessageBox.Show($"REST API failed to start: {ex.Message}\n\nDevice will work in standalone mode.",
+                "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        await InitializeServiceBusAsync();
     }
 
     private async Task InitializeServiceBusAsync()
     {
         try
         {
-            _configService = new ConfigurationService();
-
             _serviceBusClient = new DeviceServiceBusClient(
-                _configService.GetDeviceId(),
+                _configService!.GetDeviceId(),
                 _configService.GetServiceBusConnectionString(),
                 _configService.GetStatusQueue(),
                 _configService.GetCommandQueue(),
@@ -72,30 +100,115 @@ public partial class MainWindow : Window
             );
 
             _serviceBusClient.CommandReceived += OnCommandReceived;
-
             await _serviceBusClient.InitializeAsync();
             _isConnected = true;
 
-            LogMessage("Connected to Azure Service Bus");
-
+            LogMessage("✅ Connected to Azure Service Bus");
             await SendStatusUpdateAsync();
-
             _statusTimer?.Start();
         }
         catch (Exception ex)
         {
             _isConnected = false;
-            LogMessage($"Failed to connect to Service Bus: {ex.Message}");
-            MessageBox.Show($"Service Bus connection failed: {ex.Message}\n\nDevice will work in standalone mode.",
-                "Connection Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            LogMessage($"⚠️  Service Bus unavailable: {ex.Message}");
+            LogMessage("   Device will work in REST-only mode (G-krav OK)");
         }
+    }
+
+    private object GetDeviceStatus()
+    {
+        return new
+        {
+            deviceId = _configService?.GetDeviceId() ?? "fan-001",
+            deviceType = 1,
+            state = _isRunning ? 2 : (_isConnected ? 1 : 0),
+            isRunning = _isRunning,
+            speed = _currentSpeed,
+            timestamp = DateTime.UtcNow,
+            properties = new Dictionary<string, object>
+            {
+                { "Speed", _currentSpeed },
+                { "IsRunning", _isRunning }
+            }
+        };
+    }
+
+    private void HandleRestCommand(CommandRequest command)
+    {
+        Dispatcher.Invoke(async () =>
+        {
+            LogMessage($"REST Command received: {command.Action}");
+
+            switch (command.Action.ToLower())
+            {
+                case "start":
+                    if (!_isRunning)
+                    {
+                        await ToggleRunningStateAsync();
+                        LogMessage($"Fan started via REST");
+                    }
+                    else
+                    {
+                        LogMessage($"Fan already running");
+                    }
+                    break;
+
+                case "stop":
+                    if (_isRunning)
+                    {
+                        await ToggleRunningStateAsync();
+                        LogMessage($"Fan stopped via REST");
+                    }
+                    else
+                    {
+                        LogMessage($"Fan already stopped");
+                    }
+                    break;
+
+                case "setspeed":
+                    if (command.Parameters.TryGetValue("Value", out var speedObj))
+                    {
+                        var speed = Convert.ToDouble(speedObj, System.Globalization.CultureInfo.InvariantCulture);
+
+                        if (speed < 0.1 || speed > 3.0)
+                        {
+                            LogMessage($"Invalid speed {speed:0.00} (must be 0.1-3.0)");
+                            break;
+                        }
+
+                        Slider_Speed.Value = speed;
+
+                        if (_isRunning && _rotatingFan != null)
+                        {
+                            _rotatingFan.SetSpeedRatio(speed);
+                            _currentSpeed = speed;
+                            LogMessage($"Speed set to {speed:0.00} via REST");
+                            await SendStatusUpdateAsync();
+                        }
+                        else
+                        {
+                            _currentSpeed = speed;
+                            LogMessage($"Speed preset to {speed:0.00} (fan not running)");
+                        }
+                    }
+                    else
+                    {
+                        LogMessage($"Missing 'Value' parameter");
+                    }
+                    break;
+
+                default:
+                    LogMessage($"Unknown command: {command.Action}");
+                    break;
+            }
+        });
     }
 
     private async void OnCommandReceived(object? sender, DeviceCommandMessage command)
     {
         await Dispatcher.InvokeAsync(async () =>
         {
-            LogMessage($"Command received: {command.Action}");
+            LogMessage($"Service Bus Command: {command.Action}");
 
             switch (command.Action)
             {
@@ -119,7 +232,7 @@ public partial class MainWindow : Window
                         {
                             _rotatingFan.SetSpeedRatio(speed);
                             _currentSpeed = speed;
-                            LogMessage($"Fan speed set to {speed:0.00}");
+                            LogMessage($"Speed set to {speed:0.00} via Service Bus");
                             await SendStatusUpdateAsync();
                         }
                     }
@@ -147,7 +260,6 @@ public partial class MainWindow : Window
             };
 
             await _serviceBusClient.SendStatusAsync(status);
-
             await CheckAlarmThresholdAsync();
         }
         catch (Exception ex)
@@ -175,6 +287,7 @@ public partial class MainWindow : Window
             LogMessage($"ALARM: {alarm.Message}");
         }
     }
+
 
     private void Btn_OnOff_Click(object sender, RoutedEventArgs e)
     {
@@ -220,10 +333,8 @@ public partial class MainWindow : Window
         string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}";
         _eventLog?.Add(line);
 
-        // Uppdatera UI
         Dispatcher.Invoke(() =>
         {
-            // Lägg till ny rad överst
             if (!string.IsNullOrEmpty(Txt_StatusLog.Text))
             {
                 Txt_StatusLog.Text = line + Environment.NewLine + Txt_StatusLog.Text;
@@ -233,7 +344,6 @@ public partial class MainWindow : Window
                 Txt_StatusLog.Text = line;
             }
 
-            // Begränsa antal rader i UI för prestanda
             var lines = Txt_StatusLog.Text.Split(Environment.NewLine);
             if (lines.Length > MAX_UI_LOG_LINES)
             {
@@ -241,7 +351,6 @@ public partial class MainWindow : Window
             }
         });
 
-        // Spara till fil
         try
         {
             File.AppendAllText(_logFilePath, line + Environment.NewLine);
@@ -251,10 +360,21 @@ public partial class MainWindow : Window
 
     protected override async void OnClosed(EventArgs e)
     {
-        base.OnClosed(e);
-
         _statusTimer?.Stop();
         _speedTimer?.Stop();
+
+        if (_restApiHost != null)
+        {
+            try
+            {
+                await _restApiHost.StopAsync();
+                LogMessage("REST API stopped");
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error stopping REST API: {ex.Message}");
+            }
+        }
 
         if (_isConnected && _serviceBusClient != null)
         {
@@ -272,5 +392,7 @@ public partial class MainWindow : Window
 
             await _serviceBusClient.DisposeAsync();
         }
+
+        base.OnClosed(e);
     }
 }
