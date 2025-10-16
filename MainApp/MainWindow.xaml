@@ -23,9 +23,9 @@
         </Grid.RowDefinitions>
 
         <Viewbox Grid.Row="0" 
-                 Height="120" 
-                 Width="120"
-                 Margin="0,20,0,10">
+                 Height="110" 
+                 Width="110"
+                 Margin="0,20,0,20">
             <TextBlock RenderTransformOrigin="0.5,0.5" 
                        Foreground="SlateGray" 
                        Style="{StaticResource fan-icon}">
