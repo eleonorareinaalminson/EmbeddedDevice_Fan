@@ -187,7 +187,7 @@ public partial class MainWindow : Window
                         else
                         {
                             _currentSpeed = speed;
-                            LogMessage($"Speed preset to {speed:0.00} (fan not running)");
+                            LogMessage($"Speed pre-set to {speed:0.00} (fan not running)");
                         }
                     }
                     else

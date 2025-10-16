@@ -30,6 +30,6 @@ public class ConfigurationService
         {
             return result;
         }
-        return 2.8; // Default fallback
+        return 2.8; 
     }
 }
