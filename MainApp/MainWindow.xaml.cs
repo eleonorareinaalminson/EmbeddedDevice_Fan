@@ -140,40 +140,47 @@ public partial class MainWindow : Window
 
             switch (command.Action.ToLower())
             {
-                case "start":
-                    if (!_isRunning)
-                    {
-                        await ToggleRunningStateAsync();
-                        LogMessage("Fan started via REST");
-                    }
-                    else
-                    {
-                        LogMessage("Fan already running");
-                    }
-                    break;
-
-                case "stop":
-                    if (_isRunning)
-                    {
-                        await ToggleRunningStateAsync();
-                        LogMessage("Fan stopped via REST");
-                    }
-                    else
-                    {
-                        LogMessage("Fan already stopped");
-                    }
-                    break;
-
                 case "setspeed":
                     if (command.Parameters.TryGetValue("Value", out var speedObj))
                     {
-                        var speed = Convert.ToDouble(speedObj, System.Globalization.CultureInfo.InvariantCulture);
+                        double speed;
+
+                        if (speedObj is double d)
+                        {
+                            speed = d;
+                        }
+                        else if (speedObj is string strSpeed)
+                        {
+                            speed = double.Parse(strSpeed.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture);
+                        }
+                        else if (speedObj is System.Text.Json.JsonElement jsonElement)
+                        {
+                            if (jsonElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            {
+                                speed = jsonElement.GetDouble();
+                            }
+                            else if (jsonElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                            {
+                                var strVal = jsonElement.GetString() ?? "1.0";
+                                speed = double.Parse(strVal.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture);
+                            }
+                            else
+                            {
+                                speed = Convert.ToDouble(jsonElement.ToString(), System.Globalization.CultureInfo.InvariantCulture);
+                            }
+                        }
+                        else
+                        {
+                            speed = Convert.ToDouble(speedObj, System.Globalization.CultureInfo.InvariantCulture);
+                        }
 
                         if (speed < 0.1 || speed > 3.0)
                         {
                             LogMessage($"Invalid speed {speed:0.00} (must be 0.1-3.0)");
                             break;
                         }
+
+                        LogMessage($"Setting speed to {speed:0.00}");
 
                         Slider_Speed.Value = speed;
 
@@ -187,17 +194,13 @@ public partial class MainWindow : Window
                         else
                         {
                             _currentSpeed = speed;
-                            LogMessage($"Speed pre-set to {speed:0.00} (fan not running)");
+                            LogMessage($"Speed preset to {speed:0.00} (fan not running)");
                         }
                     }
                     else
                     {
                         LogMessage("Missing 'Value' parameter");
                     }
-                    break;
-
-                default:
-                    LogMessage($"Unknown command: {command.Action}");
                     break;
             }
         });
